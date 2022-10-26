@@ -4,22 +4,28 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address 
-from starkware.cairo.common.uint256 import Uint256, uint256_add
+from starkware.cairo.common.uint256 import Uint256, uint256_add, uint256_lt
 
-from openzeppelin.token.erc721.library import ERC721
-from openzeppelin.introspection.erc165.library import ERC165
 from openzeppelin.security.pausable.library import Pausable
 from openzeppelin.access.ownable.library import Ownable
+from openzeppelin.security.reentrancyguard.library import ReentrancyGuard
 from openzeppelin.upgrades.library import Proxy
+from openzeppelin.token.erc721.library import ERC721
+from openzeppelin.token.erc721.enumerable.library import ERC721Enumerable
+from openzeppelin.introspection.erc165.library import ERC165
 
-from contracts.libraries.ERC721_Metadata_base (
+from contracts.token.ERC721.ERC721_Metadata_base import (
     ERC721_Metadata_initializer,
     ERC721_Metadata_tokenURI,
     ERC721_Metadata_setBaseTokenURI,
 )
 
 @storage_var
-func counter_nft() -> (token_id: felt) {
+func counter_nft() -> (token_id: Uint256) {
+}
+
+@storage_var
+func max_supply() -> (supply: Uint256) {
 }
 
 @external
@@ -32,15 +38,18 @@ func initializer{
     symbol: felt,
     owner: felt, 
     base_token_uri_len: felt,
-    base_token_uri: felt,
+    base_token_uri: felt*,
     token_uri_suffix: felt,
-    proxy_admin: felt
+    supply: Uint256,
+    proxy_admin: felt,
 ) {
     ERC721.initializer(name, symbol);
     ERC721_Metadata_initializer();
+    ERC721Enumerable.initializer();
     Ownable.initializer(owner);
     ERC721_Metadata_setBaseTokenURI(base_token_uri_len, base_token_uri, token_uri_suffix);
-    counter.write(Uint256(1, 0));
+    max_supply.write(supply);
+    counter_nft.write(Uint256(1, 0));
     Proxy.initializer(proxy_admin);
     return ();
 }
@@ -48,6 +57,26 @@ func initializer{
 //
 // Getters
 //
+
+@view
+func maxSupply{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}() -> (supply: Uint256) {
+    let (supply: Uint256) = max_supply.read();
+    return (supply,);
+}
+
+@view
+func totalSupply{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}() -> (supply: Uint256) {
+    let (total_supply) = ERC721Enumerable.total_supply();
+    return (total_supply,);
+}
 
 @view
 func tokenURI{
@@ -152,10 +181,19 @@ func mint{
     range_check_ptr
 }() {
     let (caller_address) = get_caller_address();
+    let (total_supply: Uint256) = totalSupply();
+    let (max_supply: Uint256) = maxSupply();
+
+    let (is_lt) = uint256_lt(total_supply, max_supply);
+    with_attr error_message("Max Supply Reached") {
+        assert is_lt = 1;
+    }
+
     let (token_id: Uint256) = counter_nft.read();
     ERC721._mint(caller_address, token_id);
     let (res, _) = uint256_add(token_id, Uint256(1, 0));
     counter_nft.write(res);
+    return ();
 }
 
 @external
@@ -168,6 +206,7 @@ func setTokenURI{
 ) {
     Ownable.assert_only_owner();
     ERC721_Metadata_setBaseTokenURI(base_token_uri_len, base_token_uri, token_uri_suffix);
+    return ();
 }
 
 @external
@@ -199,7 +238,7 @@ func transferFrom{
     range_check_ptr
 }(from_: felt, to: felt, tokenId: Uint256) {
     Pausable.assert_not_paused();
-    ERC721.transfer_from(from_, to, tokenId);
+    ERC721Enumerable.transfer_from(from_, to, tokenId);
     return ();
 }
 
@@ -210,7 +249,7 @@ func safeTransferFrom{
     range_check_ptr
 }(from_: felt, to: felt, tokenId: Uint256, data_len: felt, data: felt*) {
     Pausable.assert_not_paused();
-    ERC721.safe_transfer_from(from_, to, tokenId, data_len, data);
+    ERC721Enumerable.safe_transfer_from(from_, to, tokenId, data_len, data);
     return ();
 }
 
@@ -264,7 +303,7 @@ func burn{
 }(tokenId: Uint256) {
     Pausable.assert_not_paused();
     ERC721.assert_only_token_owner(tokenId);
-    ERC721._burn(tokenId);
+    ERC721Enumerable._burn(tokenId);
     return ();
 }
 
@@ -276,6 +315,5 @@ func upgrade{
 }(new_implementation: felt) -> () {
     Proxy.assert_only_admin();
     Proxy._set_implementation_hash(new_implementation);
-    Proxy.Upgraded(new_implementation);
     return ();
 }
