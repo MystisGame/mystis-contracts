@@ -47,10 +47,12 @@ func initializer{
     ERC721_Metadata_initializer();
     ERC721Enumerable.initializer();
     Ownable.initializer(owner);
+    Proxy.initializer(proxy_admin);
+
     ERC721_Metadata_setBaseTokenURI(base_token_uri_len, base_token_uri, token_uri_suffix);
+
     max_supply.write(supply);
     counter_nft.write(Uint256(1, 0));
-    Proxy.initializer(proxy_admin);
     return ();
 }
 
@@ -180,19 +182,51 @@ func mint{
     pedersen_ptr: HashBuiltin*, 
     range_check_ptr
 }() {
+    alloc_locals;
+    ReentrancyGuard.start();
+
     let (caller_address) = get_caller_address();
     let (total_supply: Uint256) = totalSupply();
     let (max_supply: Uint256) = maxSupply();
 
     let (is_lt) = uint256_lt(total_supply, max_supply);
-    with_attr error_message("Max Supply Reached") {
+    with_attr error_message("No NFTs letf.") {
         assert is_lt = 1;
     }
 
     let (token_id: Uint256) = counter_nft.read();
-    ERC721._mint(caller_address, token_id);
+    ERC721Enumerable._mint(caller_address, token_id);
     let (res, _) = uint256_add(token_id, Uint256(1, 0));
     counter_nft.write(res);
+
+    ReentrancyGuard.end();
+    return ();
+}
+
+@external
+func burn{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}(tokenId: Uint256) {
+    ReentrancyGuard.start();
+
+    Pausable.assert_not_paused();
+    ERC721.assert_only_token_owner(tokenId);
+    ERC721Enumerable._burn(tokenId);
+
+    ReentrancyGuard.end();
+    return ();
+}
+
+@external
+func upgrade{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}(new_implementation: felt) -> () {
+    Proxy.assert_only_admin();
+    Proxy._set_implementation_hash(new_implementation);
     return ();
 }
 
@@ -237,8 +271,12 @@ func transferFrom{
     pedersen_ptr: HashBuiltin*,
     range_check_ptr
 }(from_: felt, to: felt, tokenId: Uint256) {
+    ReentrancyGuard.start();
+
     Pausable.assert_not_paused();
     ERC721Enumerable.transfer_from(from_, to, tokenId);
+
+    ReentrancyGuard.end();
     return ();
 }
 
@@ -248,8 +286,12 @@ func safeTransferFrom{
     pedersen_ptr: HashBuiltin*,
     range_check_ptr
 }(from_: felt, to: felt, tokenId: Uint256, data_len: felt, data: felt*) {
+    ReentrancyGuard.start();
+
     Pausable.assert_not_paused();
     ERC721Enumerable.safe_transfer_from(from_, to, tokenId, data_len, data);
+
+    ReentrancyGuard.end();
     return ();
 }
 
@@ -292,28 +334,5 @@ func unpause{
 }() {
     Ownable.assert_only_owner();
     Pausable._unpause();
-    return ();
-}
-
-@external
-func burn{
-    syscall_ptr: felt*,
-    pedersen_ptr: HashBuiltin*,
-    range_check_ptr
-}(tokenId: Uint256) {
-    Pausable.assert_not_paused();
-    ERC721.assert_only_token_owner(tokenId);
-    ERC721Enumerable._burn(tokenId);
-    return ();
-}
-
-@external
-func upgrade{
-    syscall_ptr: felt*,
-    pedersen_ptr: HashBuiltin*,
-    range_check_ptr
-}(new_implementation: felt) -> () {
-    Proxy.assert_only_admin();
-    Proxy._set_implementation_hash(new_implementation);
     return ();
 }
