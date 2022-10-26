@@ -76,8 +76,8 @@ func totalSupply{
     pedersen_ptr: HashBuiltin*,
     range_check_ptr
 }() -> (supply: Uint256) {
-    let (total_supply) = ERC721Enumerable.total_supply();
-    return (total_supply,);
+    let (supply) = ERC721Enumerable.total_supply();
+    return (supply,);
 }
 
 @view
