@@ -9,8 +9,8 @@ from starkware.cairo.common.uint256 import Uint256
 from openzeppelin.token.erc721.library import ERC721
 from openzeppelin.introspection.erc165.library import ERC165
 
-from libraries.ShortString import uint256_to_ss
-from libraries.Array import concat_arr
+from contracts.libraries.ShortString import uint256_to_ss
+from contracts.libraries.Array import concat_arr
 
 //
 // Storage
@@ -30,7 +30,8 @@ func ERC721_base_token_uri_suffix() -> (res : felt){
 
 func ERC721_Metadata_initializer{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
 ) {
-    ERC165.registrer_interface(0x5b5e139f);
+    ERC165.register_interface(0x5b5e139f);
+    return ();
 }
 
 func ERC721_Metadata_tokenURI{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
