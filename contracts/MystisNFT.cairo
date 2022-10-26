@@ -184,6 +184,7 @@ func mint{
 }() {
     alloc_locals;
     ReentrancyGuard.start();
+    Pausable.assert_not_paused();
 
     let (caller_address) = get_caller_address();
     let (total_supply: Uint256) = totalSupply();
@@ -210,6 +211,7 @@ func burn{
     range_check_ptr
 }(tokenId: Uint256) {
     ReentrancyGuard.start();
+    Pausable.assert_not_paused();
 
     Pausable.assert_not_paused();
     ERC721.assert_only_token_owner(tokenId);
@@ -272,6 +274,7 @@ func transferFrom{
     range_check_ptr
 }(from_: felt, to: felt, tokenId: Uint256) {
     ReentrancyGuard.start();
+    Pausable.assert_not_paused();
 
     Pausable.assert_not_paused();
     ERC721Enumerable.transfer_from(from_, to, tokenId);
@@ -286,6 +289,7 @@ func safeTransferFrom{
     pedersen_ptr: HashBuiltin*,
     range_check_ptr
 }(from_: felt, to: felt, tokenId: Uint256, data_len: felt, data: felt*) {
+    Pausable.assert_not_paused();
     ReentrancyGuard.start();
 
     Pausable.assert_not_paused();
