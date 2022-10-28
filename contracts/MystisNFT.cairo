@@ -56,9 +56,47 @@ func initializer{
     return ();
 }
 
+@external
+func upgrade{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}(new_implementation: felt) -> () {
+    Proxy.assert_only_admin();
+    Proxy._set_implementation_hash(new_implementation);
+    return ();
+}
+
+@external
+func setAdmin{syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr}(new_admin: felt) {
+    Proxy.assert_only_admin();
+    Proxy._set_admin(new_admin);
+    return ();
+}
+
 //
 // Getters
 //
+
+@view
+func getImplementationHash{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
+    range_check_ptr
+}() -> (
+    implementation: felt
+) {
+    return Proxy.get_implementation_hash();
+}
+
+@view
+func getAdmin{
+    syscall_ptr: felt*, 
+    pedersen_ptr: HashBuiltin*, 
+    range_check_ptr
+}() -> (admin: felt) {
+    return Proxy.get_admin();
+}
 
 @view
 func maxSupply{
@@ -218,17 +256,6 @@ func burn{
     ERC721Enumerable._burn(tokenId);
 
     ReentrancyGuard.end();
-    return ();
-}
-
-@external
-func upgrade{
-    syscall_ptr: felt*,
-    pedersen_ptr: HashBuiltin*,
-    range_check_ptr
-}(new_implementation: felt) -> () {
-    Proxy.assert_only_admin();
-    Proxy._set_implementation_hash(new_implementation);
     return ();
 }
 
