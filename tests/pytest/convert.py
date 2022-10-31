@@ -1,9 +1,3 @@
-import os
-from starkware.starknet.testing.state import StarknetState
-from starkware.starknet.testing.starknet import Starknet
-from starkware.starknet.testing.contract import StarknetContract
-from starkware.starknet.services.api.contract_class import ContractClass
-
 def str_to_felt(text):
     b_text = bytes(text, "ascii")
     return int.from_bytes(b_text, "big")
