@@ -10,5 +10,3 @@ from utils import (
     get_contract_class,
     cached_contract,
 )
-
-# class TestMystisUpgrades:
