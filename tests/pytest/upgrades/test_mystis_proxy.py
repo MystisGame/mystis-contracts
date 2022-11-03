@@ -1,4 +1,5 @@
 import pytest
+import asyncio
 
 from starkware.starknet.public.abi import get_selector_from_name
 from signers import MockSigner
@@ -23,6 +24,8 @@ MAX_SUPPLY = 8000
 # random value
 VALUE = 123
 
+
+
 signer = MockSigner(123456789987654321)
 
 @pytest.fixture(scope='module')
@@ -37,7 +40,6 @@ def contract_classes():
 
 @pytest.fixture(scope='module')
 async def proxy_init(contract_classes):
-    print('OKOKOKOOK')
     account_cls, implementation_cls, proxy_cls = contract_classes
     # Create a new StarkNet class that simulates the StarkNet system.
     starknet = await State.init()
@@ -79,6 +81,7 @@ async def proxy_init(contract_classes):
 def proxy_factory(contract_classes, proxy_init):
     account_cls, _, proxy_cls = contract_classes
     state, account1, account2, proxy = proxy_init
+
     _state = state.copy()
     
     admin = cached_contract(_state, account_cls, account1)
