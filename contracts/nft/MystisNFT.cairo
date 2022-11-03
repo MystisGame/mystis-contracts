@@ -109,7 +109,7 @@ func maxSupply{
 }
 
 @view
-func totalSupply{
+func totalMintedHeroes{
     syscall_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
     range_check_ptr
@@ -225,10 +225,10 @@ func mint{
     Pausable.assert_not_paused();
 
     let (caller_address) = get_caller_address();
-    let (total_supply: Uint256) = totalSupply();
+    let (total_minted_heroes: Uint256) = totalMintedHeroes();
     let (max_supply: Uint256) = maxSupply();
 
-    let (is_lt) = uint256_lt(total_supply, max_supply);
+    let (is_lt) = uint256_lt(total_minted_heroes, max_supply);
     with_attr error_message("No NFTs letf.") {
         assert is_lt = 1;
     }
