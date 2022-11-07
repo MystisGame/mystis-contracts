@@ -9,9 +9,6 @@ namespace IMystisNFT {
     func totalMintedHeroes() -> (supply: Uint256) {
     }
 
-    func maxSupply() -> (supply: Uint256) {
-    }
-
     func ownerOf(token_id: Uint256) -> (owner: felt) {
     }
 }

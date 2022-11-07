@@ -229,7 +229,7 @@ func mint{
     let (max_supply: Uint256) = maxSupply();
 
     let (is_lt) = uint256_lt(total_minted_heroes, max_supply);
-    with_attr error_message("No NFTs letf.") {
+    with_attr error_message("No NFTs left.") {
         assert is_lt = 1;
     }
 
