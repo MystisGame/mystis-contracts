@@ -2,6 +2,7 @@ from starkware.starknet.services.api.gateway.transaction import InvokeFunction
 from starkware.starknet.business_logic.transaction.objects import InternalTransaction, TransactionExecutionInfo
 from nile.signer import Signer, from_call_to_call_array, TRANSACTION_VERSION
 
+
 class MockSigner():
     """
     Utility for sending signed transactions to an Account on Starknet.
@@ -48,13 +49,15 @@ class MockSigner():
         nonce=None,
         max_fee=0
     ) -> TransactionExecutionInfo:
+        print('calls',calls)
         # hexify address before passing to from_call_to_call_array
         build_calls = []
         for call in calls:
             build_call = list(call)
             build_call[0] = hex(build_call[0])
             build_calls.append(build_call)
-
+        print('build_calls',build_calls)
+            
         raw_invocation = get_raw_invoke(account, build_calls)
         state = raw_invocation.state
 

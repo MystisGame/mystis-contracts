@@ -14,13 +14,12 @@ from utils import (
     State, Account
 )
 from convert import (
-    str_to_felt, long_str_to_array, to_uint, uint
+    str_to_felt, long_str_to_array, to_uint, 
 )
 
 COLLECTION_NAME = str_to_felt('Mystis')
 COLLECTION_SYMBOL = str_to_felt('Mystis')
 
-OWNER = 0x02563F77f6d13D521C45605C2440A07Ec63471A39e7fA768abDb8Fdafbf774De
 # random URI
 TOKEN_URI = long_str_to_array('https://ipfs.io/ipfs/')
 TOKEN_URI_LEN = len(TOKEN_URI)
@@ -50,7 +49,7 @@ async def proxy_init(contract_classes):
     params = [
         COLLECTION_NAME,            # name
         COLLECTION_SYMBOL,          # symbol
-        OWNER,                      # collection owner
+        account1.contract_address,  # collection owner
         TOKEN_URI_LEN,              # length token uri
         *TOKEN_URI,                 # base token uri
         TOKEN_URI_SUFFIX,           # base token suffix
@@ -73,6 +72,7 @@ def proxy_factory(contract_classes, proxy_init):
     account_cls, _, mystis_proxy_cls = contract_classes
     state, account1, account2, proxy = proxy_init
     _state = state.copy()
+
     admin = cached_contract(_state, account_cls, account1)
     other = cached_contract(_state, account_cls, account2)
     proxy = cached_contract(_state, mystis_proxy_cls, account2)
@@ -80,9 +80,9 @@ def proxy_factory(contract_classes, proxy_init):
     return admin, other, proxy
 
 @pytest.mark.asyncio
-async def test_initializer_after_initialized(proxy_factory):
+async def test_initializer(proxy_factory):
     admin, _, proxy = proxy_factory
-    
+
     # check admin is set
     execution_info = await signer.send_transaction(
         admin, proxy.contract_address, 'getAdmin', []
