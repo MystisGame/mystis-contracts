@@ -25,3 +25,6 @@ def long_str_to_print_array(text):
 
 def decimal_to_hex(decimal: int):
     return hex(decimal)
+
+def hex_to_felt(a):
+    return int(a, 16)
