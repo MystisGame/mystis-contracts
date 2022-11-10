@@ -21,7 +21,7 @@ from contracts.token.ERC721.ERC721_Metadata_base import (
 )
 
 @storage_var
-func counter_nft() -> (token_id: Uint256) {
+func counter_id() -> (token_id: Uint256) {
 }
 
 @storage_var
@@ -52,7 +52,7 @@ func initializer{
     ERC721_Metadata_setBaseTokenURI(base_token_uri_len, base_token_uri, token_uri_suffix);
 
     max_supply.write(supply);
-    counter_nft.write(Uint256(1, 0));
+    counter_id.write(Uint256(1, 0));
     return ();
 }
 
@@ -233,10 +233,10 @@ func mint{
         assert is_lt = 1;
     }
 
-    let (token_id: Uint256) = counter_nft.read();
+    let (token_id: Uint256) = counter_id.read();
     ERC721Enumerable._mint(caller_address, token_id);
     let (res, _) = uint256_add(token_id, Uint256(1, 0));
-    counter_nft.write(res);
+    counter_id.write(res);
 
     ReentrancyGuard.end();
     return ();
