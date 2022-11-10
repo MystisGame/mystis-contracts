@@ -21,7 +21,11 @@ COLLECTION_NAME = str_to_felt('Mystis')
 COLLECTION_SYMBOL = str_to_felt('Mystis')
 
 # random URI
-TOKEN_URI = long_str_to_array('https://ipfs.io/ipfs/')
+TOKEN_URI = [
+    str_to_felt("https://gateway.pinata.cloud/ip"), # short strings cannot have more than 31 characters
+    str_to_felt("fs/XXXXXXXXXXXXXXXXXXXXXXXXXXX/")
+]
+# TOKEN_URI = long_str_to_array("https://gateway.pinata.cloud/ipfs/XXXXXXXXXXXXXXXXXXXXXXXXXXXX)
 TOKEN_URI_LEN = len(TOKEN_URI)
 TOKEN_URI_SUFFIX = str_to_felt('.json')
 MAX_SUPPLY = to_uint(8000)
