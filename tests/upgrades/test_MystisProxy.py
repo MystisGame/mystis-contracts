@@ -17,8 +17,8 @@ from convert import (
     str_to_felt, long_str_to_array, to_uint, 
 )
 
-COLLECTION_NAME = str_to_felt('Mystis')
-COLLECTION_SYMBOL = str_to_felt('Mystis')
+COLLECTION_NAME = str_to_felt('Mystis') # felt -> 85184023390579
+COLLECTION_SYMBOL = str_to_felt('Mystis') # felt -> 85184023390579
 
 # random URI
 TOKEN_URI = [
@@ -27,7 +27,7 @@ TOKEN_URI = [
 ]
 # TOKEN_URI = long_str_to_array("https://gateway.pinata.cloud/ipfs/XXXXXXXXXXXXXXXXXXXXXXXXXXXX)
 TOKEN_URI_LEN = len(TOKEN_URI)
-TOKEN_URI_SUFFIX = str_to_felt('.json')
+TOKEN_URI_SUFFIX = str_to_felt('.json') # felt -> 199354445678
 MAX_SUPPLY = to_uint(8000)
 
 signer = MockSigner(12345678987654321)
@@ -79,7 +79,7 @@ def proxy_factory(contract_classes, proxy_init):
 
     admin = cached_contract(_state, account_cls, account1)
     other = cached_contract(_state, account_cls, account2)
-    proxy = cached_contract(_state, mystis_proxy_cls, account2)
+    proxy = cached_contract(_state, mystis_proxy_cls, proxy)
 
     return admin, other, proxy
 

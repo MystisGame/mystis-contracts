@@ -2,6 +2,7 @@ from starkware.starknet.services.api.gateway.transaction import InvokeFunction
 from starkware.starknet.business_logic.transaction.objects import InternalTransaction, TransactionExecutionInfo
 from nile.signer import Signer, from_call_to_call_array, TRANSACTION_VERSION
 
+from starkware.starknet.public.abi import get_selector_from_name
 
 class MockSigner():
     """
@@ -49,14 +50,13 @@ class MockSigner():
         nonce=None,
         max_fee=0
     ) -> TransactionExecutionInfo:
-        print('calls',calls)
         # hexify address before passing to from_call_to_call_array
         build_calls = []
         for call in calls:
             build_call = list(call)
             build_call[0] = hex(build_call[0])
             build_calls.append(build_call)
-        print('build_calls',build_calls)
+        print(build_calls)
             
         raw_invocation = get_raw_invoke(account, build_calls)
         state = raw_invocation.state
@@ -84,7 +84,15 @@ class MockSigner():
         return execution_info
 
 def get_raw_invoke(sender, calls):
+    call_array = []
+    for _, call in enumerate(calls):
+        print('proxy_address',call[0],type(call[0]))
+        print('getAdmin selector',get_selector_from_name(call[1]),type(get_selector_from_name(call[1])))
+        
     """Return raw invoke, remove when test framework supports `invoke`."""
     call_array, calldata = from_call_to_call_array(calls)
+    print('call_array',call_array)
+
+
     raw_invocation = sender.__execute__(call_array, calldata)
     return raw_invocation
