@@ -2,8 +2,7 @@ import asyncio
 import json
 
 from starknet_py.contract import Contract
-from starknet_py.net import AccountClient
-from starknet_py.net.full_node_client import FullNodeClient
+from starknet_py.net import AccountClient, KeyPair
 from starknet_py.net.gateway_client import GatewayClient
 from starknet_py.net.networks import TESTNET
 
@@ -14,7 +13,11 @@ from starkware.starknet.compiler.compile import get_selector_from_name
 
 from utils import str_to_felt, long_str_to_array, decimal_to_hex, to_uint, hex_to_felt
 
-OWNER = 0x02563F77f6d13D521C45605C2440A07Ec63471A39e7fA768abDb8Fdafbf774De
+ADDRESS = "0x63533ce1eeabcd4fe1ad85eee3c372a2e4a3e6fe3e0c7cb2cc52f784c847f17"
+PRIVATE_KEY = 0xb11149afa12f770443c653c1ecb3583a
+PUBLIC_KEY = 0x4c2308a08b95afbff4d960c6e53c54c3a1ffd0c07a08f39fe8aaf47b628d95c
+
+OWNER = 0x63533ce1eeabcd4fe1ad85eee3c372a2e4a3e6fe3e0c7cb2cc52f784c847f17
 
 COLLECTION_NAME = str_to_felt('Mystis')
 COLLECTION_SYMBOL = str_to_felt('Mystis')
@@ -30,52 +33,65 @@ MAX_SUPPLY = to_uint(800)
 
 async def setup_accounts():
     # Creates an account on TESTNET and returns an instance
-    client = GatewayClient(net=TESTNET)
-    print("⏳ Creating account on TESTNET...")
-    acc_client = await AccountClient.create_account(
-        client=client, chain=StarknetChainId.TESTNET
+    network = GatewayClient("http://localhost:5050")
+    account = AccountClient(
+        client=network, 
+        address=ADDRESS,
+        key_pair=KeyPair(private_key=PRIVATE_KEY, public_key=PUBLIC_KEY),
+        chain=StarknetChainId.TESTNET,
+        supported_tx_version=1, # (__validate__ function)
     )
-    # Deploys an account on TESTNET and returns an instance
-    return client, acc_client
+    print("✅ Account instance on TESTNET has been created")
+    # Deploy an account on TESTNET and returns an instance
+    return network, account
 
-async def declare_contract(admin_client, contract_src):
+async def declare_contract(account, contract_src):
     declare_tx = make_declare_tx(compilation_source=[contract_src])
-    return await admin_client.declare(declare_tx)
+    return await account.declare(declare_tx)
 
-async def setup_contracts(network_client, admin_client):
+async def setup_contracts(network, account):
     # Declare implementation contract
-    print("⏳ Declare MystisNFT Contract...")
-    declaration_result = await declare_contract(
-        admin_client, "contracts/nft/MystisNFT.cairo"
-    )
-
+    print("⏳ Declaring MystisNFT Contract...")
+    declare_result = await declare_contract(account, "contracts/nft/MystisNFT.cairo")
+    print("✅ MystisNFT Contract has been declared")
     selector = get_selector_from_name("initializer")
     mystis_nft_constructor_args = [
-        COLLECTION_NAME,            # name
-        COLLECTION_SYMBOL,          # symbol
-        OWNER,                      # collection owner
-        TOKEN_URI_LEN,              # length token uri
-        *TOKEN_URI,                 # base token uri
-        TOKEN_URI_SUFFIX,           # base token suffix
-        *MAX_SUPPLY,                # initial supply
-        admin_client.contract_address   # proxy admin
+        COLLECTION_NAME,                # name
+        COLLECTION_SYMBOL,              # symbol
+        OWNER,                          # collection owner
+        TOKEN_URI_LEN,                  # length token uri
+        *TOKEN_URI,                     # base token uri
+        TOKEN_URI_SUFFIX,               # base token suffix
+        *MAX_SUPPLY,                    # initial supply
+        account.address                 # proxy admin
     ]
-    # Deploy proxy and call initializer in the constructor
-    deployment_result = await Contract.deploy(
-        client=network_client,
-        compilation_source=["contracts/proxy/MystisProxy.cairo"],
+    print("⏳ Declaring Proxy Contract...")
+    proxy_declare_tx = await account.sign_declare_transaction(
+        compilation_source=["contracts/proxy/MystisProxy.cairo"], 
+        max_fee=int(1e16)
+    )
+    resp = await account.declare(transaction=proxy_declare_tx)
+    await account.wait_for_tx(resp.transaction_hash)
+    print("✅ Proxy Contract has been declared")
+
+    # Redefine the ABI so that `call` and `invoke` work
+    with open("artifacts/abis/MystisProxy.json", "r") as proxy_abi_file:
+        proxy_abi = json.load(proxy_abi_file)
+
+    deployment_result = await Contract.deploy_contract(
+        account=account,
+        class_hash=resp.class_hash,
+        abi=proxy_abi,
         constructor_args=[
-            declaration_result.class_hash,
+            declare_result.class_hash,
             selector,
-            len(mystis_nft_constructor_args)
-            *mystis_nft_constructor_args,
+            mystis_nft_constructor_args,
         ],
+        max_fee=int(1e16),
     )
     print(f'✨ Contract deployed at {decimal_to_hex(deployment_result.deployed_contract.address)}')
-    # Wait for the transaction to be accepted
     await deployment_result.wait_for_acceptance()
     proxy = deployment_result.deployed_contract
-
     # Redefine the ABI so that `call` and `invoke` work
     with open("artifacts/abis/MystisNFT.json", "r") as abi_file:
         implementation_abi = json.load(abi_file)
@@ -83,7 +99,7 @@ async def setup_contracts(network_client, admin_client):
     proxy = Contract(
         address=proxy.address,
         abi=implementation_abi,
-        client=admin_client,
+        client=account
     )
     return proxy
 
@@ -99,12 +115,12 @@ async def upgrade_proxy(admin_client, proxy_contract, new_contract_src):
     # If you change the ABI, update the `proxy_contract` here.
 
 async def main():
-    client, acc_client = await setup_accounts()
-    proxy_contract = await setup_contracts(client, acc_client)
+    network, account = await setup_accounts()
+    proxy_contract = await setup_contracts(network, account)
 
     print("⏳ Calling `getAdmin` function...")
     (proxy_admin,) = await proxy_contract.functions["getAdmin"].call()
-    assert acc_client.address == proxy_admin
+    assert account.address == proxy_admin
     print("The proxy admin was set to our account:", hex(proxy_admin))
 
     # Note that max_fee=0 is only possible on starknet-devnet.
