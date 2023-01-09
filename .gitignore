@@ -5,3 +5,4 @@ __pycache__/
 build
 .env
 cairo_venv
+.protostar_cache

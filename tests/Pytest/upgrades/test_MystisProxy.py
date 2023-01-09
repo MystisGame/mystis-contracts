@@ -25,10 +25,10 @@ TOKEN_URI = [
     str_to_felt("https://gateway.pinata.cloud/ip"), # short strings cannot have more than 31 characters
     str_to_felt("fs/XXXXXXXXXXXXXXXXXXXXXXXXXXX/")
 ]
-# TOKEN_URI = long_str_to_array("https://gateway.pinata.cloud/ipfs/XXXXXXXXXXXXXXXXXXXXXXXXXXXX)
+
 TOKEN_URI_LEN = len(TOKEN_URI)
 TOKEN_URI_SUFFIX = str_to_felt('.json') # felt -> 199354445678
-MAX_SUPPLY = to_uint(8000)
+MAX_SUPPLY = to_uint(5555)
 
 signer = MockSigner(12345678987654321)
 
@@ -65,8 +65,9 @@ async def proxy_init(contract_classes):
         constructor_calldata=[
             mystis_decl.class_hash,
             selector,
-            len(params),
-            *params
+            #len(params),
+            #*params
+            params,
         ]
     )
     return (starknet.state, account1, account2, proxy)
