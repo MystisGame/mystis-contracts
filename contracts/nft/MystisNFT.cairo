@@ -30,9 +30,9 @@ func max_supply() -> (supply: Uint256) {
 
 @external
 func initializer{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
-        range_check_ptr
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
 }(
     name: felt,
     symbol: felt,
@@ -116,6 +116,16 @@ func totalMintedHeroes{
 }() -> (supply: Uint256) {
     let (supply) = ERC721Enumerable.total_supply();
     return (supply,);
+}
+
+@view
+func herosOfOwner{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}(owner: felt, index: Uint256) -> (token_id: Uint256) {
+    let (token_id) = ERC721Enumerable.token_of_owner_by_index(owner, index);
+    return (token_id,);
 }
 
 @view
