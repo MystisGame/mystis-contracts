@@ -15,22 +15,23 @@ from starkware.starknet.compiler.compile import get_selector_from_name
 
 from utils import str_to_felt, decimal_to_hex, to_uint
 
-ADDRESS = "0x1234"
-PUBLIC_KEY = 0x4321
-PRIVATE_KEY = 0x123456789
+ADDRESS = "0x123"
+PUBLIC_KEY = 0x456
+PRIVATE_KEY = 0x12345678987654321
 
-OWNER = 0x1234
+OWNER = 0x123
+
+TOKEN_NAME = str_to_felt('Mystis Token')
+TOKEN_SYMBOL = str_to_felt('MYST')
 
 COLLECTION_NAME = str_to_felt('Mystis')
 COLLECTION_SYMBOL = str_to_felt('Mystis')
-
 TOKEN_URI = [
     str_to_felt("https://gateway.pinata.cloud/ip"),
     str_to_felt("fs/XXXXXXXXXXXXXXXXXXXXXXXXXXX/")
 ]
 TOKEN_URI_LEN = len(TOKEN_URI)
 TOKEN_URI_SUFFIX = str_to_felt('.json')
-
 MAX_SUPPLY = to_uint(800)
 
 async def setup_accounts():
@@ -43,13 +44,13 @@ async def setup_accounts():
         supported_tx_version=1,
     )
     print("✅ Account instance on TESTNET has been created")
-    return network, account
+    return account
 
 async def declare_contract(account, contract_src):
     declare_tx = make_declare_tx(compilation_source=[contract_src])
     return await account.declare(declare_tx)
 
-async def setup_contracts(network, account):
+async def setup_mystis_nft_contract(account):
     print("⏳ Declaring MystisNFT Contract...")
     declare_result = await declare_contract(account, "contracts/nft/MystisNFT.cairo")
     print("✅ MystisNFT Contract has been declared")
@@ -100,6 +101,53 @@ async def setup_contracts(network, account):
     )
     return proxy
 
+async def setup_mystis_token_contract(account):
+    print("⏳ Declaring MystisToken Contract...")
+    declare_result = await declare_contract(account, "contracts/token/ERC20/MystisToken.cairo")
+    print("✅ MystisToken Contract has been declared")
+    selector = get_selector_from_name("initializer")
+    mystis_token_constructor_args = [
+        TOKEN_NAME,
+        TOKEN_SYMBOL,
+        OWNER,
+        account.address
+    ]
+    print("⏳ Declaring Proxy Contract...")
+    proxy_declare_tx = await account.sign_declare_transaction(
+        compilation_source=["contracts/proxy/MystisProxy.cairo"], 
+        max_fee=int(1e16)
+    )
+    resp = await account.declare(transaction=proxy_declare_tx)
+    await account.wait_for_tx(resp.transaction_hash)
+    print("✅ Proxy Contract has been declared")
+
+    with open("artifacts/abis/MystisProxy.json", "r") as proxy_abi_file:
+        proxy_abi = json.load(proxy_abi_file)
+
+    deployment_result = await Contract.deploy_contract(
+        account=account,
+        class_hash=resp.class_hash,
+        abi=proxy_abi,
+        constructor_args=[
+            declare_result.class_hash,
+            selector,
+            mystis_token_constructor_args,
+        ],
+        max_fee=int(1e16),
+    )
+    print(f'✨ Contract deployed at {decimal_to_hex(deployment_result.deployed_contract.address)}')
+    await deployment_result.wait_for_acceptance()
+    proxy = deployment_result.deployed_contract
+    with open("artifacts/abis/MystisToken.json", "r") as abi_file:
+        implementation_abi = json.load(abi_file)
+
+    proxy = Contract(
+        address=proxy.address,
+        abi=implementation_abi,
+        client=account
+    )
+    return proxy
+
 async def upgrade_proxy(admin_client, proxy_contract, new_contract_src):
     declaration_result = await declare_contract(admin_client, new_contract_src)
 
@@ -109,13 +157,19 @@ async def upgrade_proxy(admin_client, proxy_contract, new_contract_src):
     await admin_client.execute(calls=call, max_fee=int(1e16))
 
 async def main():
-    network, account = await setup_accounts()
-    proxy_contract = await setup_contracts(network, account)
+    account = await setup_accounts()
+    mystis_nft_proxy_contract = await setup_mystis_nft_contract(account)
+    mystis_token_proxy_contract = await setup_mystis_token_contract(account)
 
     print("⏳ Calling `getAdmin` function...")
-    (proxy_admin,) = await proxy_contract.functions["getAdmin"].call()
-    assert account.address == proxy_admin
-    print("The proxy admin was set to our account:", hex(proxy_admin))
+    (mystis_nft_proxy_admin,) = await mystis_nft_proxy_contract.functions["getAdmin"].call()
+    assert account.address == mystis_nft_proxy_admin
+    print("The proxy admin was set to our account:", hex(mystis_nft_proxy_admin))
+
+    print("⏳ Calling `getAdmin` function...")
+    (mystis_token_proxy_admin,) = await mystis_token_proxy_contract.functions["getAdmin"].call()
+    assert account.address == mystis_token_proxy_admin
+    print("The proxy admin was set to our account:", hex(mystis_token_proxy_admin))
 
 if __name__ == "__main__":
     asyncio.run(main())

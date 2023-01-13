@@ -2,11 +2,15 @@
 
 import os
 from pathlib import Path
+from starkware.crypto.signature.fast_pedersen_hash import pedersen_hash
+from starkware.starknet.core.os.class_hash import compute_class_hash
 from starkware.starknet.public.abi import get_selector_from_name
 from starkware.starknet.business_logic.execution.objects import OrderedEvent
 from starkware.starknet.compiler.compile import compile_starknet_files
 from starkware.starknet.testing.starknet import StarknetContract
 from starkware.starknet.testing.starknet import Starknet
+
+
 
 MAX_UINT256 = (2**128 - 1, 2**128 - 1)
 INVALID_UINT256 = (MAX_UINT256[0] + 1, MAX_UINT256[1])
@@ -18,11 +22,20 @@ IACCOUNT_ID = 0xa66bd575
 _root = Path(__file__).parent.parent
 
 
+def get_cairo_path():
+    CAIRO_PATH = os.getenv('CAIRO_PATH')
+    cairo_path = []
+
+    if CAIRO_PATH is not None:
+        cairo_path = [p for p in CAIRO_PATH.split(":")]
+
+    return cairo_path
+
 def contract_path(name):
     if name.startswith("tests/"):
         return str(_root / name)
     else:
-        return str(_root / "contracts" / name)
+        return str(_root / "src" / name)
 
 
 def assert_event_emitted(tx_exec_info, from_address, name, data, order=0):
@@ -56,7 +69,7 @@ def assert_events_emitted(tx_exec_info, events):
 
 def _get_path_from_name(name):
     """Return the contract path by contract name."""
-    dirs = ["contracts"]
+    dirs = ["src", "tests/mocks"]
     for dir in dirs:
         for (dirpath, _, filenames) in os.walk(dir):
             for file in filenames:
@@ -75,9 +88,16 @@ def get_contract_class(contract, is_path=False):
 
     contract_class = compile_starknet_files(
         files=[path],
-        debug_info=True
+        debug_info=True,
+        cairo_path=get_cairo_path()
     )
     return contract_class
+
+
+def get_class_hash(contract_name, is_path=False):
+    """Return the class_hash for a given contract."""
+    contract_class = get_contract_class(contract_name, is_path)
+    return compute_class_hash(contract_class=contract_class, hash_func=pedersen_hash)
 
 
 def cached_contract(state, _class, deployed):
