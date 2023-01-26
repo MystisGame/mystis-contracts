@@ -4,7 +4,8 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address 
-from starkware.cairo.common.uint256 import Uint256, uint256_add, uint256_lt
+from starkware.cairo.common.uint256 import Uint256, uint256_add, uint256_sub, uint256_lt, uint256_eq
+from starkware.cairo.common.alloc import alloc
 
 from openzeppelin.security.pausable.library import Pausable
 from openzeppelin.access.ownable.library import Ownable
@@ -129,6 +130,23 @@ func herosOfOwner{
 }
 
 @view
+func heroesOfOwner{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}(owner: felt) -> (heroes_len: felt, heroes: Uint256*) {
+    alloc_locals;
+    
+    let (local heroes: Uint256*) = alloc();
+    let heroes_len_uint: Uint256 = balanceOf(owner);
+    let heroes_len = heroes_len_uint.low;
+    
+    let (heroes_len_: felt, heroes_: Uint256*) = _heroesOfOwner(owner, heroes_len, heroes);
+
+    return (heroes_len, heroes);
+}
+
+@view
 func tokenURI{
     syscall_ptr: felt*,
     pedersen_ptr: HashBuiltin*,
@@ -218,6 +236,25 @@ func owner{
     range_check_ptr
 }() -> (owner: felt) {
     return Ownable.owner();
+}
+
+//
+// Internals
+//
+
+func _heroesOfOwner{
+    syscall_ptr: felt*,
+    pedersen_ptr: HashBuiltin*,
+    range_check_ptr
+}(owner: felt, heroes_len: felt, heroes: Uint256*) -> (heroes_len: felt, heroes: Uint256*) {
+    if(heroes_len == 0) {
+        return (heroes_len, heroes);
+    }
+    let heroes_len_to_uint = Uint256(heroes_len - 1, 0);
+    let (token_id: Uint256) = herosOfOwner(owner, heroes_len_to_uint);
+    assert [heroes] = token_id;
+
+    return _heroesOfOwner(owner, heroes_len - 1, heroes + Uint256.SIZE);
 }
 
 //
