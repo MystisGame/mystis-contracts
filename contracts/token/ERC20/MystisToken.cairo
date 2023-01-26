@@ -240,8 +240,9 @@ func claim{
     pedersen_ptr: HashBuiltin*,
     range_check_ptr
 }(to: felt, amount: Uint256) {
+    alloc_locals;
     let (entry) = get_claimable_amount(to);
-    let (amount: Uint256) = // Uint256(entry.value, 0);
+    let amount: Uint256 = Uint256(entry.value, 0);
     Ownable.assert_only_owner();
     ERC20._mint(to, amount);
     return ();
